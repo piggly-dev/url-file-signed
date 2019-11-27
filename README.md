@@ -1,5 +1,5 @@
 # Create secures Images URLs with a limited lifetime
-[![Latest Version on Packagist](https://img.shields.io/packagist/v/piggly/url-file-signer.svg?style=flat-square)](https://packagist.org/packages/piggly/url-file-signer) [![Software License](https://img.shields.io/badge/license-MIT-brightgreen.svg?style=flat-square)](LICENSE.md) [![Build Status](https://img.shields.io/travis/piggly-dev/url-file-signer/master.svg?style=flat-square)](https://travis-ci.org/piggly-dev/url-file-signer) [![Total Downloads](https://img.shields.io/packagist/dt/piggly/url-file-signer.svg?style=flat-square)](https://packagist.org/packages/piggly/url-file-signer)
+[![Latest Version on Packagist](https://img.shields.io/packagist/v/piggly/url-file-signer.svg?style=flat-square)](https://packagist.org/packages/piggly/url-file-signer) [![Software License](https://img.shields.io/badge/license-MIT-brightgreen.svg?style=flat-square)](LICENSE.md) 
 
 This package was made inspired by [`spatie/url-signer`](https://github.com/spatie/url-signer) and **Facebook** Images URL Schemas. It can create a file URL with a limited lifetime and a signature checker. But, it also includes some features, such as:
 
@@ -12,7 +12,7 @@ This package was made inspired by [`spatie/url-signer`](https://github.com/spati
 ## Installation
 
 This package can installed via **Composer**:
-```php
+```bash
 composer require piggly/url-file-signer
 ```
 
@@ -262,10 +262,7 @@ If you discover any security related issues, please email dev@piggly.com.br inst
 
 ## Support us
 
-**Piggly Studio** is a agency based in Rio de Janeiro, Brasil. You'll find an overview of all our open source projects [on our website](https://dev.piggly.com.br).
-
-Does your business depend on our contributions? Reach out and support us on [Patreon](https://www.patreon.com/spatie). 
-All pledges will be dedicated to allocating workforce on maintenance and new awesome stuff.
+**Piggly Studio** is a agency based in Rio de Janeiro, Brasil.
 
 ## License
 
