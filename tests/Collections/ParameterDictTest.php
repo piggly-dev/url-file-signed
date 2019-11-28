@@ -1,8 +1,8 @@
 <?php
 
-namespace Piggly\UrlFileSigner\Tests\Dict;
+namespace Piggly\Tests\UrlFileSigner\Dict;
 
-use Piggly\UrlFileSigner\Dict\ParameterDict;
+use Piggly\UrlFileSigner\Collections\ParameterDict;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
 
@@ -19,7 +19,7 @@ class ParameterDictTest extends TestCase
     public function itWillThrowAnExceptionWhenAliasAlreadyExists ()
     {
         $this->expectException( RuntimeException::class );
-        $dict = ParameterDict::create()
+        ParameterDict::create()
                     ->add('compression')
                     ->add('contrast');
     }
@@ -28,7 +28,7 @@ class ParameterDictTest extends TestCase
     public function itWillThrowAnExceptionWhenNameAlreadyExists ()
     {
         $this->expectException( RuntimeException::class );
-        $dict = ParameterDict::create()
+        ParameterDict::create()
                     ->add('compression','c')
                     ->add('compression','cc');
     }
@@ -57,28 +57,28 @@ class ParameterDictTest extends TestCase
     public function itWillThrowAnExceptionWhenDeleteANonExistingParameter ()
     {
         $this->expectException( RuntimeException::class );
-        $dict = ParameterDict::create()->delete('size');
+        ParameterDict::create()->delete('size');
     }
     
     /** @test */
     public function itWillThrowAnExceptionWhenGetANonExistingParameter ()
     {
         $this->expectException( RuntimeException::class );
-        $dict = ParameterDict::create()->getAlias('size');
+        ParameterDict::create()->getAlias('size');
     }
     
     /** @test */
     public function itWillThrowAnExceptionWhenSortingANonExistingParameterToDisplay ()
     {
         $this->expectException( RuntimeException::class );
-        $dict = ParameterDict::create()->sortToDisplay(['size']);
+        ParameterDict::create()->sortToDisplay(['size']);
     }
     
     /** @test */
     public function itWillThrowAnExceptionWhenSortingANonExistingParameterInFileName ()
     {
         $this->expectException( RuntimeException::class );
-        $dict = ParameterDict::create()->sortInFileName(['size']);
+        ParameterDict::create()->sortInFileName(['size']);
     }
     
     /** @test */

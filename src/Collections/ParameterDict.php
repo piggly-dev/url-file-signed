@@ -1,6 +1,6 @@
 <?php
 
-namespace Piggly\UrlFileSigner\Dict;
+namespace Piggly\UrlFileSigner\Collections;
 
 use RuntimeException;
 
@@ -27,8 +27,8 @@ class ParameterDict
      * Add a parameter with name and alias. When alias is equal to null, then
      * the default alias is the first letter of parameter name.
      * 
-     * @param type $name
-     * @param type $alias
+     * @param string $name
+     * @param string $alias
      * @throws RuntimeException
      * @return \self
      */
@@ -44,6 +44,26 @@ class ParameterDict
         { throw new RuntimeException( sprintf( 'Parameter `%s` already in use.', $name ) ); }
         
         $this->params[$name] = $alias; 
+        return $this;
+    }
+    
+    /**
+     * Add one or many parameters alias.
+     * 
+     * @param array $params
+     * @throws RuntimeException
+     * @return \self
+     */
+    public function fill ( $params ) : self
+    {
+        foreach ( $params as $param => $alias )
+        {
+            if ( is_int ( $param ) )
+            { $this->add( $alias ); }
+            else
+            { $this->add( $param, $alias ); }
+        }
+        
         return $this;
     }
     
@@ -72,6 +92,18 @@ class ParameterDict
         $this->getOrFail($name);
         $this->params[$name] = $alias;       
         return $this;
+    }
+    
+    /**
+     * Get the parameter name.
+     * 
+     * @param string $alias
+     * @return string
+     */
+    public function getNameByAlias ( string $alias ) : string
+    { 
+        $found = array_search( $alias, $this->params );
+        return empty( $found ) ? null : $found;         
     }
     
     /**
@@ -112,20 +144,43 @@ class ParameterDict
     /**
      * Defines a new sorting order for setting parameters in the file name.
      * 
-     * @param array $newSort
+     * @param array $names
      * @throws RuntimeException
      * @return \self
      */
-    public function sortInFileName ( array $newSort ) : self
+    public function sortInFileName ( array $names ) : self
     {
         $this->inFile = [];
 
-        foreach ( $newSort as $param )
+        foreach ( $names as $param )
         {
             if ( $this->nameExists ( $param ) )
             { $this->inFile[$param] = $this->params[$param]; }
             else
             { throw new RuntimeException( sprintf( 'Parameter `%s` is invalid or does not exist.', $param ) ); }
+        }
+
+        $this->inFile = array_merge( $this->inFile, array_diff( $this->params, $this->inFile ) );
+        return $this;
+    }
+    
+    /**
+     * Defines a new sorting order for setting parameters in the file name.
+     * 
+     * @param array $aliases
+     * @throws RuntimeException
+     * @return \self
+     */
+    public function sortInFileNameByAlias ( array $aliases ) : self
+    {
+        $this->inFile = [];
+        
+        foreach ( $aliases as $param )
+        {
+            if ( $this->aliasExists ($param) && ( $name = $this->getNameByAlias($param) ) !== null )
+            { $this->inFile[$name] = $param; }
+            else
+            { throw new RuntimeException( sprintf( 'Alias `%s` is invalid or does not exist.', $param ) ); }
         }
 
         $this->inFile = array_merge( $this->inFile, array_diff( $this->params, $this->inFile ) );

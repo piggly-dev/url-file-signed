@@ -1,33 +1,29 @@
 <?php
 
-namespace Piggly\UrlFileSigner\Tests;
+namespace Piggly\Tests\UrlFileSigner;
 
 use DateInterval;
 use Piggly\UrlFileSigner\FileSigner;
-use Piggly\UrlFileSigner\Dict\ParameterDict;
+use Piggly\UrlFileSigner\Collections\ParameterDict;
+use Piggly\UrlFileSigner\Entities\File;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
 
 class FileSignerTest extends TestCase
 {
     protected $baseUrl;
-    protected $filePath;
+    protected $file;
     protected $signatureKey;
     
     protected function setUp ()
     {
-        $this->baseUrl = 'https://cdn.example.com/';
-        
-        $this->filePath = DIRECTORY_SEPARATOR 
-                . 'path' 
-                . DIRECTORY_SEPARATOR 
-                . 'to' 
-                . DIRECTORY_SEPARATOR 
-                . 'file' 
-                . DIRECTORY_SEPARATOR 
-                . 'image.jpg';
-        
+        $this->baseUrl      = 'https://cdn.example.com/';
         $this->signatureKey = 'random_key';
+        
+        $this->file = File::create( ParameterDict::create()->add('version')->add('size')->add('compression') )->set('/path/to/file/image.jpg');
+        
+        $this->file->parameters->add('version', '1')
+                               ->add('size', '1080x1080');
     }
 
     /** @test */
@@ -42,125 +38,17 @@ class FileSignerTest extends TestCase
     public function itWillThrowAnExceptionForAnEmptySignatureKey ()
     {
         $this->expectException( RuntimeException::class );
-        
-        $fileSigner = FileSigner::create( $this->baseUrl, '' );
-    }
-    
-    /** @test */
-    public function itReturnsAnUniqueNumericFileNameWithExtensionIncludingDot ()
-    {
-        $fileName = FileSigner::createUniqueFileName('.jpg');
-        
-        $this->assertRegExp('/^[0-9]{8,}_[0-9]{15,}_[0-9]{1,19}.jpg$/', $fileName);
-    }
-    
-    /** @test */
-    public function itReturnsAnUniqueNumericFileNameWithExtensionNotIncludingDot ()
-    {
-        $fileName = FileSigner::createUniqueFileName('jpg');
-        
-        $this->assertRegExp('/^[0-9]{8,}_[0-9]{15,}_[0-9]{1,19}.jpg$/', $fileName);
-    }
-    
-    /** @test */
-    public function itWillThrowAnExceptionForNonFileParamsWhenAppendingParamsToFileName ()
-    {
-        $this->expectException( RuntimeException::class );
-        
-        $fileSigner = FileSigner::create( $this->baseUrl, $this->signatureKey );
-        FileSigner::appendParamsToFileName( $fileSigner, '/path/to/file/image.jpg', ['size'=>250] );
-    }
-    
-    /** @test */
-    public function itWillThrowAnExceptionWhenNotUsingFileExtensionWhileAppendingParamsToFileName ()
-    {
-        $this->expectException( RuntimeException::class );
-        
-        $fileParams = ParameterDict::create()->add('size');
-        $fileSigner = FileSigner::create( $this->baseUrl, $this->signatureKey )
-                        ->addAllowedFileParams ( $fileParams );
-        
-        FileSigner::appendParamsToFileName( $fileSigner, '/path/to/file/image', ['size'=>250] );
-    }
-    
-    /** @test */
-    public function itWillThrowAnExceptionForNotValidParametersWhileAppendingParamsToFileName ()
-    {
-        $this->expectException( RuntimeException::class );
-        
-        $fileParams = ParameterDict::create()->add('size');
-        $fileSigner = FileSigner::create( $this->baseUrl, $this->signatureKey )
-                        ->addAllowedFileParams ( $fileParams );
-        
-        FileSigner::appendParamsToFileName( $fileSigner, '/path/to/file/image.jpg', ['size'=>250,'version'=>1] );
-    }
-    
-    /** @test */
-    public function itReturnsAFileNameWithParams ()
-    {
-        $fileParams = ParameterDict::create()->add('version')->add('size');
-        $fileSigner = FileSigner::create( $this->baseUrl, $this->signatureKey )
-                        ->addAllowedFileParams ( $fileParams );
-        $fileName   = FileSigner::appendParamsToFileName( $fileSigner, 'image.jpg', ['version' => 'private', 'size' => 1024]);
-        
-        $this->assertEquals( 'image_vprivate_s1024.jpg', $fileName );
-    }
-    
-    /** @test */
-    public function itReturnsAFileNameWithOnlyOneParam ()
-    {
-        $fileParams = ParameterDict::create()->add('version')->add('size');
-        $fileSigner = FileSigner::create( $this->baseUrl, $this->signatureKey )
-                        ->addAllowedFileParams ( $fileParams );
-        $fileName   = FileSigner::appendParamsToFileName( $fileSigner, 'image.jpg', ['size' => 1024]);
-        
-        $this->assertEquals( 'image_s1024.jpg', $fileName );
-    }
-    
-    /** @test */
-    public function itReturnsAFileNameWithOnlyOneParamWithAlias ()
-    {
-        $fileParams = ParameterDict::create()->add('version')->add('size','sx');
-        $fileSigner = FileSigner::create( $this->baseUrl, $this->signatureKey )
-                        ->addAllowedFileParams ( $fileParams );
-        $fileName   = FileSigner::appendParamsToFileName( $fileSigner, 'image.jpg', ['size' => 1024]);
-        
-        $this->assertEquals( 'image_sx1024.jpg', $fileName );
-    }
-    
-    /** @test */
-    public function itReturnsAFileNameIncludindDirectoryWithParams ()
-    {
-        $fileParams = ParameterDict::create()->add('version')->add('size');
-        $fileSigner = FileSigner::create( $this->baseUrl, $this->signatureKey )
-                        ->addAllowedFileParams ( $fileParams );
-        
-        $fileName = FileSigner::appendParamsToFileName( $fileSigner, $this->filePath, ['version' => 'private', 'size' => 1024]);
-        
-        $expected = DIRECTORY_SEPARATOR 
-                . 'path' 
-                . DIRECTORY_SEPARATOR 
-                . 'to' 
-                . DIRECTORY_SEPARATOR 
-                . 'file' 
-                . DIRECTORY_SEPARATOR 
-                . 'image_vprivate_s1024.jpg';
-        
-        $this->assertEquals( $expected, $fileName );
+        FileSigner::create( $this->baseUrl, '' );
     }
     
     /** @test */
     public function itReturnsFalseWhenValidatingAForgedUrl ()
-    {
-        $fileParams = ParameterDict::create()->add('version')->add('size');
-        $fileSigner = FileSigner::create( $this->baseUrl, $this->signatureKey )
-                        ->addAllowedFileParams ( $fileParams );
-        
-        $fileName  = FileSigner::appendParamsToFileName($fileSigner, $this->filePath, ['version' => 'private', 'size' => 1024]);
-        $signedUrl = $fileSigner->sign( $fileName, new DateInterval('P7D') );
+    {        
+        $fileSigner = FileSigner::create( $this->baseUrl, $this->signatureKey );
+        $signedUrl = $fileSigner->sign( $this->file, new DateInterval('PT1S') );
         
         // Modified any part from signed url
-        $signedUrl = str_replace ( '/s1024', '', $signedUrl );
+        $signedUrl = str_replace ( '/s1080x1080', '', $signedUrl );
         
         $this->assertFalse( $fileSigner->validate($signedUrl) );
     }
@@ -169,112 +57,54 @@ class FileSignerTest extends TestCase
     public function itReturnsFalseWhenValidatingAnExpiredUrl ()
     {
         // Expired URL with valid signature
-        $signedUrl = 'https://cdn.example.com/vprivate/sx1024/566a63774e6a45334e445934565463304e6b5a554e6a59324f545a444e6a553d/image.jpg?oh=f91d84088d3d30ff6ec6b9fc723301ff&oe=5DBB7580';
+        $signedUrl = 'https://cdn.example.com/v1/s1080x1080/564667334d4459784e7a51324f4659334e445a6d556a59324e6a6b32597a593156773d3d/image.jpg?op=djo6cw&oe=5DDFE582&oh=a40ab71257fcaaa91f99dbba5d6b883f';
         
-        $fileParams = ParameterDict::create()->add('version')->add('size');
-        $fileSigner = FileSigner::create( $this->baseUrl, $this->signatureKey )
-                        ->addAllowedFileParams ( $fileParams );
-        
+        $fileSigner = FileSigner::create( $this->baseUrl, $this->signatureKey );
         $this->assertFalse( $fileSigner->validate($signedUrl) );
     }
     
     /** @test */
-    public function itReturnsFileNameWhenValidatingAnNonExpiredWithoutParameters ()
+    public function itReturnsFileNameWhenValidatingAnNonExpiredUrlWithoutParameters ()
     {
+        $file = File::create( ParameterDict::create()->add('version')->add('size')->add('compression') )->set('/path/to/file/image.jpg');
         $fileSigner = FileSigner::create( $this->baseUrl, $this->signatureKey );
-        $signedUrl = $fileSigner->sign( $this->filePath, new DateInterval('P7D') );
+        $signedUrl = $fileSigner->sign( $file, new DateInterval('P7D') );
         
-        $this->assertEquals( $this->filePath, $fileSigner->validate($signedUrl) );
+        $this->assertEquals( '/path/to/file/image.jpg', $fileSigner->validate($signedUrl)['file'] );
     }
     
     /** @test */
     public function itReturnsFileNameWhenValidatingAnNonExpiredUrl ()
     {
-        $fileParams = ParameterDict::create()->add('version')->add('size');
-        $fileSigner = FileSigner::create( $this->baseUrl, $this->signatureKey )
-                        ->addAllowedFileParams ( $fileParams );
+        $fileSigner = FileSigner::create( $this->baseUrl, $this->signatureKey );
+        $signedUrl = $fileSigner->sign( $this->file, new DateInterval('P7D') );
         
-        $fileName  = FileSigner::appendParamsToFileName($fileSigner, $this->filePath,['version'=> '', 'size' => 1024]);
-        $signedUrl = $fileSigner->sign( $fileName, new DateInterval('P7D') );
-        
-        $this->assertEquals( $fileName, $fileSigner->validate($signedUrl) );
-    }
-    
-    /** @test */
-    public function itReturnsFileNameWhenValidatingAnNonExpiredUrlDifferentPath ()
-    {
-        $fileParams = ParameterDict::create()->add('version')->add('size');
-        $fileSigner = FileSigner::create( $this->baseUrl, $this->signatureKey )
-                        ->addAllowedFileParams ( $fileParams );
-        
-        $fileName  = FileSigner::appendParamsToFileName($fileSigner, 'image.jpg',['version'=> '', 'size' => 1024]);
-        $signedUrl = $fileSigner->sign( $fileName, new DateInterval('P7D') );
-        
-        $this->assertEquals( DIRECTORY_SEPARATOR.$fileName, $fileSigner->validate($signedUrl) );
-    }
-    
-    /** @test */
-    public function itReturnsFileNameWhenValidatingAnNonExpiredUrlAnotherDifferentPath ()
-    {
-        $fileParams = ParameterDict::create()->add('version')->add('size');
-        $fileSigner = FileSigner::create( $this->baseUrl, $this->signatureKey )
-                        ->addAllowedFileParams ( $fileParams );
-        
-        $fileName  = FileSigner::appendParamsToFileName($fileSigner, 'test/image.jpg',['version'=> '', 'size' => 1024]);
-        $signedUrl = $fileSigner->sign( $fileName, new DateInterval('P7D') );
-        
-        $this->assertEquals( DIRECTORY_SEPARATOR.$fileName, $fileSigner->validate($signedUrl) );
-    }
-    
-    /** @test */
-    public function itReturnsFileNameWhenValidatingAnNonExpiredUrlSortingDisplayUrlParams ()
-    {
-        $fileParams = ParameterDict::create()->add('size')->add('version');
-        $fileSigner = FileSigner::create( $this->baseUrl, $this->signatureKey )
-                        ->addAllowedFileParams ( $fileParams );
-        
-        // \path\to\file\image_s1024_v1.jpg
-        $fileName  = FileSigner::appendParamsToFileName($fileSigner, $this->filePath,['version'=> '1', 'size' => 1024]);
-        
-        // Ordering display parameters to version,size
-        $fileSigner->getAllowedFileParams()->sortToDisplay(['version']);
-        
-        $signedUrl = $fileSigner->sign( $fileName, new DateInterval('P7D') );
-        
-        $this->assertEquals( $fileName, $fileSigner->validate($signedUrl) );
+        $this->assertEquals( '/path/to/file/image_v1_s1080x1080.jpg', $fileSigner->validate($signedUrl)['file'] );
     }
     
     /** @test */
     public function itReturnsTrueWhenValidatingAnNonExpiredUrlWithQueryString ()
     {
-        $fileParams = ParameterDict::create()->add('size')->add('version');
-        $fileSigner = FileSigner::create( $this->baseUrl, $this->signatureKey )
-                        ->addAllowedFileParams ( $fileParams );
+        $fileSigner = FileSigner::create( $this->baseUrl, $this->signatureKey );
+        $signedUrl = $fileSigner->sign( $this->file, new DateInterval('P7D'), ['cached'=>true] );
         
-        $fileName  = FileSigner::appendParamsToFileName($fileSigner, $this->filePath, ['size' => 1024]);
-        $signedUrl = $fileSigner->sign( $fileName, new DateInterval('P7D'), ['cached'=>true] );
-        
-        $this->assertEquals( $fileName, $fileSigner->validate($signedUrl) );
+        $this->assertEquals( '/path/to/file/image_v1_s1080x1080.jpg', $fileSigner->validate($signedUrl)['file'] );
     }
     
     /** @test */
     public function itReturnsTrueWhenValidatingAnNonExpiredUrlWithNonSignedQueryString ()
     {
-        $fileParams = ParameterDict::create()->add('size')->add('version');
-        $fileSigner = FileSigner::create( $this->baseUrl, $this->signatureKey )
-                        ->addAllowedFileParams ( $fileParams );
+        $fileSigner = FileSigner::create( $this->baseUrl, $this->signatureKey );
+        $signedUrl = $fileSigner->sign( $this->file, new DateInterval('P7D') );
         
-        $fileName  = FileSigner::appendParamsToFileName($fileSigner, $this->filePath, ['size' => 1024]);
-        $signedUrl = $fileSigner->sign( $fileName, new DateInterval('P7D') );
-        
-        $this->assertEquals( $fileName, $fileSigner->validate($signedUrl.'&another_param=something') );
+        $this->assertEquals( '/path/to/file/image_v1_s1080x1080.jpg', $fileSigner->validate($signedUrl.'&another_param=something')['file'] );
     }
     
     public function unsignedUrlProvider()
     {
         return [
-            ['https://cdn.example.com/vprivate/s1024/546a64464d314a43/image-for-testing.jpg?oe=5DBB7580'],
-            ['https://cdn.example.com/vprivate/s1024/546a64464d314a43/image-for-testing.jpg?oh=0d3b9ca9977b5bd4d152dccd8f59f322'],
+            ['https://cdn.example.com/565659334d4459784e7a51324f4649334e445a6d557a59324e6a6b32597a593156513d3d/image.jpg?oh=0633ef94eeb563883c1fa30a4ac38f7a'],
+            ['https://cdn.example.com/565659334d4459784e7a51324f4649334e445a6d557a59324e6a6b32597a593156513d3d/image.jpg?oe=5DE92509'],
         ];
     }
     

@@ -4,20 +4,13 @@ namespace Piggly\UrlFileSigner;
 
 use DateInterval;
 use DateTime;
-use Piggly\UrlFileSigner\Dict\ParameterDict;
+use Piggly\UrlFileSigner\Collections\ParameterDict;
+use Piggly\UrlFileSigner\Entities\File;
 use Purl\Url;
 use RuntimeException;
 
 abstract class UrlSigner implements BaseSigner
 {
-    /** @var string File separator. */
-    const FILE_SEPARATOR = '_';
-    
-    /**
-     * @var string The mounted URL to use in all methods.
-     */
-    protected $montedUrl;
-    
     /**
      * @var string The base URL to use in all methods.
      */
@@ -29,19 +22,14 @@ abstract class UrlSigner implements BaseSigner
     protected $signatureKey;
     
     /**
-     * @var string File separator.
-     */
-    protected $fileSeparator;
-    
-    /**
      * @var ParameterDict Query parameters names.
      */
     protected $queryParams;
     
     /**
-     * @var ParameterDict File parameters to get.
+     * @var File A file to manipulate.
      */
-    protected $fileParams;
+    protected $file;
     
     /**
      * 
@@ -58,7 +46,6 @@ abstract class UrlSigner implements BaseSigner
 
         $this->baseUrl = trim( $baseUrl, '/' );
         $this->signatureKey = $signatureKey;
-        $this->fileSeparator = self::FILE_SEPARATOR;
         
         $this->queryParams = ParameterDict::create()
                                 ->add('parameters','op')
@@ -85,23 +72,33 @@ abstract class UrlSigner implements BaseSigner
      * @param DateInterval $ttl
      * @return string
      */
-    public function sign ( string $filePath, DateInterval $ttl, array $queryStrings = [] ) : string
+    public function sign ( File $file, DateInterval $ttl, array $queryStrings = [] ) : string
     {
         // Check if query has reseverd parameters
         if ( count ( array_intersect ( array_keys ( $queryStrings ), $this->queryParams->aliases() ) ) !== 0 )
         { throw new RuntimeException( sprintf( 'You cannot set reserved query parameters `%s`', implode(',', $this->queryParams->aliases() ) ) ); }
-        // FIX PATH
-        $path = $this->fixDirectorySeparator($filePath);
+        
         // Url component
         $url = new Url($this->baseUrl);
+        
         // Encode TTL
         $ttl = $this->encodeTTL($ttl);
-        // Extract media from URL
-        $media = $this->parseMedia($path);
+        
         // Attach pathes
-        $url->set( 'path', $media['paths'] . $this->encodePaths($path) . $media['media']);
+        $url->set( 'path', $file->encodeToUri() );
+        
+        // Order of parameters in fileName
+        if ( count($order = $file->getOrderOfParamsInFileName()) !== 0 )
+        {
+            $order = 
+                [
+                    $this->queryParams->getAlias('parameters') 
+                        => trim ( base64_encode( implode( '::', $order ) ), '=' )
+                ];
+        }
+        
         // Merge order of parameters to query strings
-        $queryStrings = array_merge( $queryStrings, $media['order'] );
+        $queryStrings = array_merge( $queryStrings, $order );
         
         return $this->appendQueryParameters($url, $ttl, $queryStrings);
     }
@@ -161,10 +158,13 @@ abstract class UrlSigner implements BaseSigner
         { return false; }
         
         // Return File Path
-        $path     = $url->path;
-        $filePath = $this->decodePaths( $path ) . '/' . $this->createMediaName( $path, $par );
+        $output = [];
         
-        return $this->recoverDirectorySeparator($filePath);
+        $par            = !empty($par) ? explode( '::', base64_decode ( $par ) ) : [];
+        $output['exp']  = $this->decodeTTL( $exp );
+        $output['file'] = File::decodeUri( $url->path, $par );
+        
+        return $output;
     }
     
     /**
@@ -176,26 +176,6 @@ abstract class UrlSigner implements BaseSigner
      * @return string
      */
     abstract protected function createSignature ( $url, string $ttl );
-    
-    /**
-     * Replace the file separator.
-     * 
-     * @param string $fileSeparator
-     * @return \self
-     */
-    public function changeFileSeparator ( string $fileSeparator ) : self
-    {
-        $this->fileSeparator = $fileSeparator;
-        return $this;
-    }
-    
-    /**
-     * Get the file separator character.
-     * 
-     * @return string
-     */
-    public function getFileSeparator () : string
-    { return $this->fileSeparator; }
     
     /**
      * Replace the order of parameters query parameter name.
@@ -246,52 +226,6 @@ abstract class UrlSigner implements BaseSigner
     }
     
     /**
-     * Add a collection of allowed parameters to files.
-     * 
-     * @param ParameterDict $params
-     * @return \self
-     */
-    public function addAllowedFileParams ( ParameterDict $params ) : self
-    { 
-        $this->fileParams = $params; 
-        return $this;
-    }
-    
-    /**
-     * Get the collection fo allowed parameters to files.
-     * 
-     * @return array
-     */
-    public function getAllowedFileParams ()
-    { return $this->fileParams; }
-    
-    /**
-     * Defines a new sorting order for displaying parameters in the URL.
-     * 
-     * @param array $newSort
-     * @throws RuntimeException
-     * @return \self
-     */
-    public function sortToDisplay ( array $newSort ) : self
-    {
-        $this->fileParams->sortToDisplay($newSort);
-        return $this;
-    }
-    
-    /**
-     * Defines a new sorting order for setting parameters in the file name.
-     * 
-     * @param array $newSort
-     * @throws RuntimeException
-     * @return \self
-     */
-    public function sortInFileName ( array $newSort ) : self
-    {
-        $this->fileParams->sortInFileName($newSort);
-        return $this;
-    }
-    
-    /**
      * Append domain, signature and expiration parameters to URL.
      * 
      * @param string $url
@@ -318,173 +252,6 @@ abstract class UrlSigner implements BaseSigner
         
         return (string)$url;
     }
-
-    /**
-     * Parse media extracting and removing file parameters respecting added order.
-     * 
-     * @param string $paths URI Paths.
-     * @return array
-     */
-    protected function parseMedia ( string $paths ) : array
-    {
-        $media = [ 'paths' => '', 'media' => '', 'order' => [] ];
-        
-        if ( !empty( $this->fileParams ) )
-        {
-            foreach ( $this->fileParams->display() as $param )
-            {
-                $regex = '/'.$this->fileSeparator.$param.'([a-z0-9]+)?/i';
-
-                preg_match( $regex, $paths, $matches );
-
-                if ( !empty( $matches ) )
-                { 
-                    $value = !empty($matches[1]) ? $matches[1] : '';
-                    $media['paths'] .= '/' . $param . $value; 
-                }
-            }
-
-            // Remove parameters from string
-            $regex          = '/'.$this->fileSeparator.'('.implode('|',$this->fileParams->aliases()).')([a-z0-9]+)?/i';
-            $media['media'] = preg_replace($regex, '', $paths);
-            $media['order'] = [ $this->queryParams->getAlias ('parameters') => $this->detectParams( $paths ) ];
-        }
-        else
-        { $media['media'] = $paths; }
-        
-        $media['media'] = '/' . basename ( $media['media'] );
-        return $media;
-    }
-    
-    /**
-     * Find parameters order in file name
-     * 
-     * @param string $paths
-     * @return string
-     */
-    protected function detectParams ( string $paths ) : string
-    {
-        preg_match_all('/_(?<params>'.implode('|',$this->fileParams->aliases()).')([a-z0-9]+)?/', $paths, $matches, PREG_PATTERN_ORDER );
-        
-        if ( !empty( $matches['params'] ) )
-        { return base64_encode ( implode( '::', $matches['params'] ) ); }
-        
-        return '';
-    }
-    
-    /**
-     * Generate media name including file parameters.
-     * 
-     * @param string $path
-     * @param string $paramsOrder
-     * @return string
-     */
-    protected function createMediaName ( string $path, string $paramsOrder = null ) : string
-    {
-        $params = !is_null( $paramsOrder ) ? explode( '::', base64_decode($paramsOrder) ) : null;
-        
-        $ext   = pathinfo( $path, PATHINFO_EXTENSION );
-        $media = pathinfo( $path, PATHINFO_FILENAME );
-        
-        if ( !empty( $params ) )
-        {
-            foreach ( $params as $param )
-            {
-                $regex = '/\/'.$param.'([a-z0-9]+)?/i';
-                
-                preg_match( $regex, $path, $matches );
-                
-                if ( !empty( $matches ) )
-                { 
-                    $value = !empty($matches[1]) ? $matches[1] : '';
-                    $media .= $this->fileSeparator . $param . $value; 
-                }
-            }
-        }
-        
-        return $media.'.'.$ext;
-    }
-    
-    /**
-     * Convert each path to a HEXADECIMAL string, then encode to BASE64 and again
-     * convert to a HEXADECIMAL string.
-     * 
-     * @param string $paths
-     * @return string
-     */
-    protected function encodePaths ( string $paths ) : string
-    {
-        $paths = trim ( dirname ( $paths ), '/' );
-        
-        if ( $paths === '.' )
-        { return ''; }
-        
-        $folders = explode ( '/', $paths );
-        $folder  = '';
-        
-        if ( !empty($folders) )
-        {
-            foreach ( $folders as $f )
-            { 
-                if ( intval( $f ) )
-                { 
-                    // Char identifier from G to O
-                    $folder .= chr(rand(71,79)) . dechex($f); 
-                }
-                else
-                { 
-                    // Char identifier from Q to Y
-                    $folder .= chr(rand(81,89)) . bin2hex($f); 
-                }
-            }
-
-            return '/' . bin2hex ( base64_encode( strtoupper($folder) ) );
-        }
-        
-        return '';
-    }
-    
-    /**
-     * Decode the HEXADECIMAL path in URI paths
-     * 
-     * @param string $paths
-     * @return string
-     */
-    protected function decodePaths ( string $paths ) : string
-    {
-        $uri = dirname( $paths );
-        
-        if ( $paths === '.' )
-        { return ''; }
-        
-        // Removes all file parameters from paths
-        if ( !empty ( $this->fileParams ) )
-        { 
-            $regex = '/\/('.implode('|',$this->fileParams->aliases()).')([a-z0-9]+)?/i';
-            $uri   = preg_replace($regex, '', $uri);
-        }
-        
-        // Decode paths
-        $uri = base64_decode ( hex2bin ( trim ( $uri, '/' ) ) ); 
-        // Get all hexadecimal paths
-        preg_match_all ( '/(?<code>[G-OQ-Y])(?<hex>[A-F0-9]+)/i', $uri, $matches, PREG_PATTERN_ORDER );
-        $folder = '';
-
-        // Decode
-        foreach ( $matches['code'] as $index => $code )
-        {
-            $ascii = ord($code);
-            
-            // Is decimal
-            if ( $ascii >= 71 && $ascii <= 79 )
-            { $folder .= '/' . hexdec($matches['hex'][$index]); }
-            // Is string
-            else if ( $ascii >= 81 && $ascii <= 89 )
-            { $folder .= '/' . hex2bin($matches['hex'][$index]); }
-        }
-        
-        return $folder;
-    }
     
     /**
      * Convert a UNIX Timestamp to HEXADECIMAL uppercase string.
@@ -503,28 +270,4 @@ abstract class UrlSigner implements BaseSigner
      */
     protected function decodeTTL ( string $encoded )
     { return intval ( hexdec( $encoded ) ); }
-    
-    /**
-     * Fix for systems that uses \ as DIRECTORY_SEPARATOR
-     * @param string $path
-     */
-    protected function fixDirectorySeparator ( string $path ) : string
-    {
-        if ( DIRECTORY_SEPARATOR === '\\' )
-        { $path = str_replace( DIRECTORY_SEPARATOR, '/', $path ); }
-        
-        return $path;
-    }
-    
-    /**
-     * Recover for systems that uses \ as DIRECTORY_SEPARATOR
-     * @param string $path
-     */
-    protected function recoverDirectorySeparator ( string $path ) : string
-    {
-        if ( DIRECTORY_SEPARATOR === '\\' )
-        { $path = str_replace( '/', DIRECTORY_SEPARATOR, $path ); }
-        
-        return $path;
-    }
 }
