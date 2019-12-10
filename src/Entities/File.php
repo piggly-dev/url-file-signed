@@ -35,7 +35,7 @@ class File
     public function __construct ( ParameterDict $params )
     {
         $this->parameters = ParameterCollection::create ( $params );
-        $this->separator  = self::FILE_SEPARATOR;
+        $this->separator  = addslashes(self::FILE_SEPARATOR);
         return $this;
     }
     
@@ -56,7 +56,7 @@ class File
      */
     public function changeSeparator ( string $separator ) : self
     {
-        $this->separator = $separator;
+        $this->separator = addslashes($separator);
         return $this;
     }
     
@@ -195,7 +195,7 @@ class File
      */
     public function getOrderOfParamsInFileName () : array
     {
-        preg_match_all('/_(?<params>'.implode('|',$this->parameters->allowed->aliases()).')([a-z0-9]+)?/', $this->getFileName(), $matches, PREG_PATTERN_ORDER );
+        preg_match_all('/'.$this->separator.'(?<params>'.implode('|',$this->parameters->allowed->aliases()).')([a-z0-9]+)?/', $this->getFileName(), $matches, PREG_PATTERN_ORDER );
         
         if ( !empty( $matches['params'] ) )
         { return $matches['params']; }
@@ -307,7 +307,7 @@ class File
      */
     public function setName ( string $name ) : self
     {
-        $this->name = trim( $name, DIRECTORY_SEPARATOR );
+        $this->name = $this->scanParamsInFileName ( trim( $name, DIRECTORY_SEPARATOR ) );
         return $this;
     }
     
@@ -384,6 +384,36 @@ class File
     {
         $this->parameters->allowed->sortInFileName($newSort);
         return $this;
+    }
+    
+    /**
+     * Scan for parameters in filename.
+     * 
+     * @param string $name
+     * @return string
+     */
+    protected function scanParamsInFileName ( string $name ) : string
+    {        
+        foreach ( $this->parameters->allowed->inFileName() as $param => $alias )
+        {
+            $regex = '/'.$this->separator.$alias.'([a-z0-9]+)?/i';
+            
+            preg_match( $regex, $name, $matches );
+
+            if ( !empty( $matches ) )
+            { 
+                $value = !empty($matches[1]) ? $matches[1] : '';
+                $this->parameters->add( $param, $value );
+            }
+        }
+        
+        if ( $this->parameters->count() !== 0 )
+        {
+            $regex = '/'.$this->separator.'('.implode('|',$this->parameters->allowed->aliases()).')([a-z0-9]+)?/i';
+            return preg_replace($regex, '', $name);
+        }
+        
+        return $name;
     }
     
     /**

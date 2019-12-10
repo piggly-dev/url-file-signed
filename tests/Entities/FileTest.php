@@ -27,28 +27,28 @@ class FileTest extends TestCase
     }
 
     /** @test */
-    public function itRetursASimpleFileNames ()
+    public function itReturnsASimpleFileNames ()
     {
         $file = File::create( $this->paramsDict )->set('/path/to/file/image.jpg');
         $this->assertEquals( '/path/to/file/image.jpg', $file->getFileName() );
     }
 
     /** @test */
-    public function itRetursASimpleFileNameWithoutFirstBackslash ()
+    public function itReturnsASimpleFileNameWithoutFirstBackslash ()
     {
         $file = File::create( $this->paramsDict )->set('path/to/file/image.jpg');
         $this->assertEquals( 'path/to/file/image.jpg', $file->getFileName() );
     }
 
     /** @test */
-    public function itRetursASimpleFileNameWithoutPath ()
+    public function itReturnsASimpleFileNameWithoutPath ()
     {
         $file = File::create( $this->paramsDict )->set('image.jpg');
         $this->assertEquals( 'image.jpg', $file->getFileName() );
     }
 
     /** @test */
-    public function itRetursASimpleFileNameCreatedByHand ()
+    public function itReturnsASimpleFileNameCreatedByHand ()
     {
         $file = File::create( $this->paramsDict )
                     ->setName('image')
@@ -70,7 +70,7 @@ class FileTest extends TestCase
     }
 
     /** @test */
-    public function itRetursAFileNameWithParameters ()
+    public function itReturnsAFileNameWithParameters ()
     {
         $file = File::create( $this->paramsDict );
         
@@ -79,6 +79,37 @@ class FileTest extends TestCase
                             ->add('size', '1080x1080');
         
         $this->assertEquals( '/path/to/file/image_v1_s1080x1080.jpg', $file->getFileName() );
+    }
+
+    /** @test */
+    public function itReturnsParametersCountInFileName ()
+    {
+        $file = File::create( $this->paramsDict );
+        
+        $file->set('/path/to/file/image_s1080x1080.jpg');
+        
+        $this->assertEquals( 1, $file->parameters->count() );
+    }
+
+    /** @test */
+    public function itReturnsANameWithoutParameters ()
+    {
+        $file = File::create( $this->paramsDict );
+        
+        $file->set('/path/to/file/image_s1080x1080.jpg');
+        
+        $this->assertEquals( 'image.jpg', $file->getName( true ) );
+    }
+
+    /** @test */
+    public function itReturnsFileNameWithDifferentParameters ()
+    {
+        $file = File::create( $this->paramsDict );
+        
+        $file->set('/path/to/file/image_s1080x1080.jpg');
+        $file->parameters->add('size', '1024x1024');
+        
+        $this->assertEquals( '/path/to/file/image_s1024x1024.jpg', $file->getFileName()  );
     }
     
     /** @test */
@@ -94,7 +125,7 @@ class FileTest extends TestCase
     }
 
     /** @test */
-    public function itRetursAFileNameWithOneParameter ()
+    public function itReturnsAFileNameWithOneParameter ()
     {
         $file = File::create( $this->paramsDict );
         
@@ -105,7 +136,7 @@ class FileTest extends TestCase
     }
 
     /** @test */
-    public function itRetursAFileNameWithParametersChangingOrder ()
+    public function itReturnsAFileNameWithParametersChangingOrder ()
     {
         $file = File::create( $this->paramsDict );
         
@@ -118,7 +149,18 @@ class FileTest extends TestCase
     }
 
     /** @test */
-    public function itRetursAnEncodedPath ()
+    public function itReadsParametersFromFileNameAndReturnsWithParametersChangingOrder ()
+    {
+        $file = File::create( $this->paramsDict );
+        
+        $file->set('/path/to/file/image_v1_s1080x1080.jpg')
+                ->sortInFileName( ['size','compression'] );
+        
+        $this->assertEquals( '/path/to/file/image_s1080x1080_v1.jpg', $file->getFileName() );
+    }
+
+    /** @test */
+    public function itReturnsAnEncodedPath ()
     {
         $file = File::create( $this->paramsDict );
         
@@ -129,7 +171,7 @@ class FileTest extends TestCase
     }
 
     /** @test */
-    public function itRetursADecodedPath ()
+    public function itReturnsADecodedPath ()
     {
         $file = File::create( $this->paramsDict );
         
@@ -141,7 +183,7 @@ class FileTest extends TestCase
     }
 
     /** @test */
-    public function itRetursAFileNameWithEncodedPaths ()
+    public function itReturnsAFileNameWithEncodedPaths ()
     {
         $file = File::create( $this->paramsDict );
         
@@ -152,7 +194,7 @@ class FileTest extends TestCase
     }
 
     /** @test */
-    public function itRetursAFileNameWithDecodedPaths ()
+    public function itReturnsAFileNameWithDecodedPaths ()
     {
         $file = File::create( $this->paramsDict );
         
@@ -164,7 +206,7 @@ class FileTest extends TestCase
     }
 
     /** @test */
-    public function itRetursAEncodedFileNameFromUri ()
+    public function itReturnsAEncodedFileNameFromUri ()
     {
         $file = File::create( $this->paramsDict );
         
@@ -177,7 +219,7 @@ class FileTest extends TestCase
     }
 
     /** @test */
-    public function itRetursADecodedFileNameFromUri ()
+    public function itReturnsADecodedFileNameFromUri ()
     {
         $file = File::create( $this->paramsDict );
         
