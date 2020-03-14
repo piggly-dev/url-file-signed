@@ -116,6 +116,7 @@ abstract class UrlSigner implements BaseSigner
         
         // Setup
         $queries = $url->query->getData();
+        $extra   = filter_var_array ( array_diff_key( $queries, array_flip ( $this->queryParams->aliases() ) ), FILTER_SANITIZE_STRING );
         
         // Check if has all required params
         if ( count ( array_diff ( $this->queryParams->onlyAliases(['expiration','signature']), array_keys( $queries ) ) ) !== 0 )
@@ -145,7 +146,7 @@ abstract class UrlSigner implements BaseSigner
         foreach ( $queries as $name => $value )
         { 
             if ( $value === $sig ) { break; }
-            $queryParams[$name] = $value;  
+            $queryParams[$name] = filter_var ( $value, FILTER_SANITIZE_STRING );  
         }
         
         $url->query->setData($queryParams);
@@ -163,6 +164,10 @@ abstract class UrlSigner implements BaseSigner
         $par            = !empty($par) ? explode( '::', base64_decode ( $par ) ) : [];
         $output['exp']  = $this->decodeTTL( $exp );
         $output['file'] = File::decodeUri( $url->path, $par );
+        
+        // Add extra query attributes to output
+        if ( !empty ( $extra ) )
+        { $output['extra'] = $extra; }
         
         return $output;
     }

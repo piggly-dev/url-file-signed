@@ -250,4 +250,16 @@ class FileTest extends TestCase
             ->setPath('path/to/file')
             ->getFileName();
     }
+
+    /** @test */
+    public function tryToAssertFolderWithZeros ()
+    {
+        $file = File::create( $this->paramsDict );
+        
+        $file->set('/2020/03/path/image.jpg')
+                ->parameters->add('size', '1080x1080');
+        
+        $file->encodePath();
+        $this->assertEquals( '/2020/03/path/', $file->decodePath() );
+    }
 }

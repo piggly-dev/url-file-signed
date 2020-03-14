@@ -119,4 +119,14 @@ class FileSignerTest extends TestCase
         
         $this->assertFalse($fileSigner->validate($unsignedUrl));
     }
+
+    /** @test */
+    public function tryToAssertFolderWithZeros ()
+    {
+        $file = File::create( ParameterDict::create()->add('version')->add('size')->add('compression') )->set('/2020/03/path/image.jpg');
+        $fileSigner = FileSigner::create( $this->baseUrl, $this->signatureKey );
+        $signedUrl = $fileSigner->sign( $file, new DateInterval('P7D') );
+        
+        $this->assertEquals( '/2020/03/path/image.jpg', $fileSigner->validate($signedUrl)['file'] );
+    }
 }

@@ -75,7 +75,10 @@ class File
         
         foreach ( $folders as $f )
         { 
-            if ( intval( $f ) )
+            if ( empty( $f ) )
+            { continue; }
+            
+            if ( intval( $f ) && $f >= 10 )
             { 
                 // Char identifier from G to O
                 $encoded .= chr(rand(71,79)) . dechex($f); 
